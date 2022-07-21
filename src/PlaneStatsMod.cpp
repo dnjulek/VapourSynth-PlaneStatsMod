@@ -159,16 +159,18 @@ static void VS_CC planeStatsModCreate(const VSMap* in, VSMap* out, [[maybe_unuse
 		vsapi->freeNode(d->node);
 		return;
 	}
-	
-	VSMap* args = vsapi->createMap();
-	vsapi->mapConsumeNode(args, "clipa", d->node, maAppend);
-	vsapi->mapSetInt(args, "plane", d->plane, maAppend);
-	vsapi->mapSetData(args, "prop", "PlaneStats", -1, dtUtf8, maAppend);
-	VSPlugin* stdplugin = vsapi->getPluginByID(VSH_STD_PLUGIN_ID, core);
-	VSMap* ret = vsapi->invoke(stdplugin, "PlaneStats", args);
-	d->node = vsapi->mapGetNode(ret, "clip", 0, nullptr);
-	vsapi->freeMap(args);
-	vsapi->freeMap(ret);
+
+	if (d->minthr == 0 || d->maxthr == 0) {
+		VSMap* args = vsapi->createMap();
+		vsapi->mapConsumeNode(args, "clipa", d->node, maAppend);
+		vsapi->mapSetInt(args, "plane", d->plane, maAppend);
+		vsapi->mapSetData(args, "prop", "PlaneStats", -1, dtUtf8, maAppend);
+		VSPlugin* stdplugin = vsapi->getPluginByID(VSH_STD_PLUGIN_ID, core);
+		VSMap* ret = vsapi->invoke(stdplugin, "PlaneStats", args);
+		d->node = vsapi->mapGetNode(ret, "clip", 0, nullptr);
+		vsapi->freeMap(args);
+		vsapi->freeMap(ret);
+	}
 
 	VSFilterDependency deps[] = { {d->node, rpStrictSpatial} };
 	vsapi->createVideoFilter(out, "PlaneStatsMod", vi, planeStatsModGetFrame, planeStatsModFree, fmParallel, deps, 1, d.get(), core);
