@@ -1,7 +1,7 @@
 ## PlaneStatsMod
 
 Vapoursynth PlaneStats with threshold.\
-Min and Max with threshold are useful for white balance scripts like retinex.
+Min and Max with threshold are useful for white balance scripts [like retinex](https://github.com/dnjulek/jvsfunc/blob/d3e41d9417f63b450b84e45e945d0402e33ff92e/jvsfunc/misc.py#L53).
 
 ### Usage
 ```python
