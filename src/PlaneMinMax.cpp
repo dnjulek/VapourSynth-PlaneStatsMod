@@ -79,10 +79,10 @@ static const VSFrame* VS_CC planeMinMaxGetFrame(int n, int activationReason, voi
 
 				if (pixelsize == 4) {
 					double retvalminf = retvalmin / 65535.0;
-					vsapi->mapSetFloat(dstProps, "PlaneStatsMin", retvalminf, maReplace);
+					vsapi->mapSetFloat(dstProps, "psmMin", retvalminf, maReplace);
 				}
 				else {
-					vsapi->mapSetInt(dstProps, "PlaneStatsMin", retvalmin, maReplace);
+					vsapi->mapSetInt(dstProps, "psmMin", retvalmin, maReplace);
 				}
 			}
 			
@@ -101,10 +101,10 @@ static const VSFrame* VS_CC planeMinMaxGetFrame(int n, int activationReason, voi
 				
 				if (pixelsize == 4) {
 					double retvalmaxf = retvalmax / 65535.0;
-					vsapi->mapSetFloat(dstProps, "PlaneStatsMax", retvalmaxf, maReplace);
+					vsapi->mapSetFloat(dstProps, "psmMax", retvalmaxf, maReplace);
 				}
 				else {
-					vsapi->mapSetInt(dstProps, "PlaneStatsMax", retvalmax, maReplace);
+					vsapi->mapSetInt(dstProps, "psmMax", retvalmax, maReplace);
 				}
 			}
 			
@@ -158,18 +158,6 @@ static void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, [[maybe_unused]
 		vsapi->mapSetError(out, "PlaneMinMax: maxthr should be a float between 0.0 and 1.0");
 		vsapi->freeNode(d->node);
 		return;
-	}
-
-	if (d->minthr == 0 || d->maxthr == 0) {
-		VSMap* args = vsapi->createMap();
-		vsapi->mapConsumeNode(args, "clipa", d->node, maAppend);
-		vsapi->mapSetInt(args, "plane", d->plane, maAppend);
-		vsapi->mapSetData(args, "prop", "PlaneStats", -1, dtUtf8, maAppend);
-		VSPlugin* stdplugin = vsapi->getPluginByID(VSH_STD_PLUGIN_ID, core);
-		VSMap* ret = vsapi->invoke(stdplugin, "PlaneStats", args);
-		d->node = vsapi->mapGetNode(ret, "clip", 0, nullptr);
-		vsapi->freeMap(args);
-		vsapi->freeMap(ret);
 	}
 
 	VSFilterDependency deps[] = { {d->node, rpStrictSpatial} };

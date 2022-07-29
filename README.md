@@ -10,7 +10,8 @@ psm.PlaneStatsMod(vnode clip[, float minthr=0, float maxthr=0, int plane=0])
 ### Parameters:
 
 - clip\
-    A clip to process.
+    A clip to process.\
+    Gets frame props named ``psmMin`` and ``psmMax``.
 - minthr\
     Amount of the smallest pixels dropped before pick the PlaneStatsMin.\
     Should be a float between 0.0 and 1.0
