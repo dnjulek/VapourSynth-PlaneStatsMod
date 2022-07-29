@@ -4,15 +4,15 @@
 #include "VapourSynth4.h"
 #include "VSHelper4.h"
 
-struct PlaneStatsModData final {
+struct planeMinMaxData final {
 	VSNode* node;
 	float minthr;
 	float maxthr;
 	int plane;
 };
 
-static const VSFrame* VS_CC planeStatsModGetFrame(int n, int activationReason, void* instanceData, void** frameData, VSFrameContext* frameCtx, VSCore* core, const VSAPI* vsapi) {
-	auto d{ static_cast<PlaneStatsModData*>(instanceData) };
+static const VSFrame* VS_CC planeMinMaxGetFrame(int n, int activationReason, void* instanceData, void** frameData, VSFrameContext* frameCtx, VSCore* core, const VSAPI* vsapi) {
+	auto d{ static_cast<planeMinMaxData*>(instanceData) };
 
 	if (activationReason == arInitial) {
 		vsapi->requestFrameFilter(n, d->node, frameCtx);
@@ -117,14 +117,14 @@ static const VSFrame* VS_CC planeStatsModGetFrame(int n, int activationReason, v
 	return nullptr;
 }
 
-static void VS_CC planeStatsModFree(void* instanceData, [[maybe_unused]] VSCore* core, const VSAPI* vsapi) {
-	auto d{ static_cast<PlaneStatsModData*>(instanceData) };
+static void VS_CC planeMinMaxFree(void* instanceData, [[maybe_unused]] VSCore* core, const VSAPI* vsapi) {
+	auto d{ static_cast<planeMinMaxData*>(instanceData) };
 	vsapi->freeNode(d->node);
 	delete d;
 }
 
-static void VS_CC planeStatsModCreate(const VSMap* in, VSMap* out, [[maybe_unused]] void* userData, VSCore* core, const VSAPI* vsapi) {
-	auto d{ std::make_unique<PlaneStatsModData>() };
+static void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, [[maybe_unused]] void* userData, VSCore* core, const VSAPI* vsapi) {
+	auto d{ std::make_unique<planeMinMaxData>() };
 	int err = 0;
 
 	d->node = vsapi->mapGetNode(in, "clip", 0, nullptr);
@@ -143,19 +143,19 @@ static void VS_CC planeStatsModCreate(const VSMap* in, VSMap* out, [[maybe_unuse
 		d->plane = 0;
 
 	if (d->plane < 0 || d->plane >= vi->format.numPlanes) {
-		vsapi->mapSetError(out, "PlaneStatsMod: invalid plane specified");
+		vsapi->mapSetError(out, "PlaneMinMax: invalid plane specified");
 		vsapi->freeNode(d->node);
 		return;
 	}
 
 	if (d->minthr < 0 || d->minthr > 1) {
-		vsapi->mapSetError(out, "PlaneStatsMod: minthr should be a float between 0.0 and 1.0");
+		vsapi->mapSetError(out, "PlaneMinMax: minthr should be a float between 0.0 and 1.0");
 		vsapi->freeNode(d->node);
 		return;
 	}
 	
 	if (d->maxthr < 0 || d->maxthr > 1) {
-		vsapi->mapSetError(out, "PlaneStatsMod: maxthr should be a float between 0.0 and 1.0");
+		vsapi->mapSetError(out, "PlaneMinMax: maxthr should be a float between 0.0 and 1.0");
 		vsapi->freeNode(d->node);
 		return;
 	}
@@ -173,17 +173,17 @@ static void VS_CC planeStatsModCreate(const VSMap* in, VSMap* out, [[maybe_unuse
 	}
 
 	VSFilterDependency deps[] = { {d->node, rpStrictSpatial} };
-	vsapi->createVideoFilter(out, "PlaneStatsMod", vi, planeStatsModGetFrame, planeStatsModFree, fmParallel, deps, 1, d.get(), core);
+	vsapi->createVideoFilter(out, "PlaneMinMax", vi, planeMinMaxGetFrame, planeMinMaxFree, fmParallel, deps, 1, d.get(), core);
 	d.release();
 }
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin* plugin, const VSPLUGINAPI* vspapi) {
 	vspapi->configPlugin("com.julek.psm", "psm", "PlaneStats with threshold", VS_MAKE_VERSION(1, 0), VAPOURSYNTH_API_VERSION, 0, plugin);
-	vspapi->registerFunction("PlaneStatsMod",
+	vspapi->registerFunction("PlaneMinMax",
                              "clip:vnode;"
                              "minthr:float:opt;"
                              "maxthr:float:opt;"
                              "plane:int:opt;",
                              "clip:vnode;",
-                             planeStatsModCreate, nullptr, plugin);
+                             planeMinMaxCreate, nullptr, plugin);
 }
