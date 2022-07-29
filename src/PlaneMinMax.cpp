@@ -1,8 +1,4 @@
-#include <algorithm>
-#include <memory>
-
-#include "VapourSynth4.h"
-#include "VSHelper4.h"
+#include "shared.h"
 
 struct planeMinMaxData final {
 	VSNode* node;
@@ -28,102 +24,98 @@ static const VSFrame* VS_CC planeMinMaxGetFrame(int n, int activationReason, voi
 		const uint8_t* srcp = vsapi->getReadPtr(src, d->plane);
 		ptrdiff_t stride = vsapi->getStride(src, d->plane);
 
-		if (d->minthr > 0 || d->maxthr > 0) {
-			int pixelsize = fi->bytesPerSample;
-			const int bits_per_pixel = fi->bitsPerSample;
-			const int max_pixel_value = (1 << bits_per_pixel) - 1;
-			const int buffersize = pixelsize == 4 ? 65536 : (1 << bits_per_pixel);
-			uint32_t* accum_buf = new uint32_t[buffersize];
-			std::fill_n(accum_buf, buffersize, 0);
+		int pixelsize = fi->bytesPerSample;
+		const int bits_per_pixel = fi->bitsPerSample;
+		const int max_pixel_value = (1 << bits_per_pixel) - 1;
+		const int buffersize = pixelsize == 4 ? 65536 : (1 << bits_per_pixel);
+		uint32_t* accum_buf = new uint32_t[buffersize];
+		std::fill_n(accum_buf, buffersize, 0);
 
-			switch (pixelsize) {
-			case 1:
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						accum_buf[srcp[x]]++;
-					}
-					srcp += stride;
+		switch (pixelsize) {
+		case 1:
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					accum_buf[srcp[x]]++;
 				}
-				break;
-			case 2:
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						accum_buf[std::min((int)(reinterpret_cast<const uint16_t*>(srcp)[x]), max_pixel_value)]++;
-					}
-					srcp += stride;
-				}
-				break;
-			case 4:
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						const float pixel = reinterpret_cast<const float*>(srcp)[x];
-						accum_buf[std::clamp((int)(65535.0f * pixel + 0.5f), 0, 65535)]++;
-					}
-					srcp += stride;
-				}
-				break;
+				srcp += stride;
 			}
-
-			if (d->minthr > 0) {
-				int retvalmin = buffersize - 1;
-				unsigned int tpixelsmin = (unsigned int)(height * width * d->minthr);
-				unsigned int counted = 0;
-
-				for (int i = 0; i < buffersize; i++) {
-					counted += accum_buf[i];
-					if (counted > tpixelsmin) {
-						retvalmin = i;
-						break;
-					}
+			break;
+		case 2:
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					accum_buf[std::min((int)(reinterpret_cast<const uint16_t*>(srcp)[x]), max_pixel_value)]++;
 				}
-
-				if (pixelsize == 4) {
-					double retvalminf = retvalmin / 65535.0;
-					vsapi->mapSetFloat(dstProps, "psmMin", retvalminf, maReplace);
-				}
-				else {
-					vsapi->mapSetInt(dstProps, "psmMin", retvalmin, maReplace);
-				}
+				srcp += stride;
 			}
-			
-			if (d->maxthr > 0) {
-				int retvalmax = 0;
-				unsigned int tpixelsmax = (unsigned int)(height * width * d->maxthr);
-				unsigned int counted = 0;
-
-				for (int i = buffersize - 1; i >= 0; i--) {
-					counted += accum_buf[i];
-					if (counted > tpixelsmax) {
-						retvalmax = i;
-						break;
-					}
+			break;
+		case 4:
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					const float pixel = reinterpret_cast<const float*>(srcp)[x];
+					accum_buf[std::clamp((int)(65535.0f * pixel + 0.5f), 0, 65535)]++;
 				}
-				
-				if (pixelsize == 4) {
-					double retvalmaxf = retvalmax / 65535.0;
-					vsapi->mapSetFloat(dstProps, "psmMax", retvalmaxf, maReplace);
-				}
-				else {
-					vsapi->mapSetInt(dstProps, "psmMax", retvalmax, maReplace);
-				}
+				srcp += stride;
 			}
-			
-			delete[] accum_buf;
+			break;
 		}
-		
+
+
+		int retvalmin = buffersize - 1;
+		unsigned int tpixelsmin = (unsigned int)(height * width * d->minthr);
+		unsigned int countmin = 0;
+
+		for (int i = 0; i < buffersize; i++) {
+			countmin += accum_buf[i];
+			if (countmin > tpixelsmin) {
+				retvalmin = i;
+				break;
+			}
+		}
+
+		if (pixelsize == 4) {
+			double retvalminf = retvalmin / 65535.0;
+			vsapi->mapSetFloat(dstProps, "psmMin", retvalminf, maReplace);
+		}
+		else {
+			vsapi->mapSetInt(dstProps, "psmMin", retvalmin, maReplace);
+		}
+
+
+		int retvalmax = 0;
+		unsigned int tpixelsmax = (unsigned int)(height * width * d->maxthr);
+		unsigned int countmax = 0;
+
+		for (int i = buffersize - 1; i >= 0; i--) {
+			countmax += accum_buf[i];
+			if (countmax > tpixelsmax) {
+				retvalmax = i;
+				break;
+			}
+		}
+
+		if (pixelsize == 4) {
+			double retvalmaxf = retvalmax / 65535.0;
+			vsapi->mapSetFloat(dstProps, "psmMax", retvalmaxf, maReplace);
+		}
+		else {
+			vsapi->mapSetInt(dstProps, "psmMax", retvalmax, maReplace);
+		}
+
+		delete[] accum_buf;
+
 		vsapi->freeFrame(src);
 		return dst;
 	}
 	return nullptr;
 }
 
-static void VS_CC planeMinMaxFree(void* instanceData, [[maybe_unused]] VSCore* core, const VSAPI* vsapi) {
+static void VS_CC planeMinMaxFree(void* instanceData, VSCore* core, const VSAPI* vsapi) {
 	auto d{ static_cast<planeMinMaxData*>(instanceData) };
 	vsapi->freeNode(d->node);
 	delete d;
 }
 
-static void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, [[maybe_unused]] void* userData, VSCore* core, const VSAPI* vsapi) {
+void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, void* userData, VSCore* core, const VSAPI* vsapi) {
 	auto d{ std::make_unique<planeMinMaxData>() };
 	int err = 0;
 
@@ -153,7 +145,7 @@ static void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, [[maybe_unused]
 		vsapi->freeNode(d->node);
 		return;
 	}
-	
+
 	if (d->maxthr < 0 || d->maxthr > 1) {
 		vsapi->mapSetError(out, "PlaneMinMax: maxthr should be a float between 0.0 and 1.0");
 		vsapi->freeNode(d->node);
@@ -163,15 +155,4 @@ static void VS_CC planeMinMaxCreate(const VSMap* in, VSMap* out, [[maybe_unused]
 	VSFilterDependency deps[] = { {d->node, rpStrictSpatial} };
 	vsapi->createVideoFilter(out, "PlaneMinMax", vi, planeMinMaxGetFrame, planeMinMaxFree, fmParallel, deps, 1, d.get(), core);
 	d.release();
-}
-
-VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin* plugin, const VSPLUGINAPI* vspapi) {
-	vspapi->configPlugin("com.julek.psm", "psm", "PlaneStats with threshold", VS_MAKE_VERSION(1, 0), VAPOURSYNTH_API_VERSION, 0, plugin);
-	vspapi->registerFunction("PlaneMinMax",
-                             "clip:vnode;"
-                             "minthr:float:opt;"
-                             "maxthr:float:opt;"
-                             "plane:int:opt;",
-                             "clip:vnode;",
-                             planeMinMaxCreate, nullptr, plugin);
 }

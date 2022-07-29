@@ -19,7 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\PlaneStatsMod.cpp" />
+    <ClCompile Include="..\src\PlaneAverage.cpp" />
+    <ClCompile Include="..\src\PlaneMinMax.cpp" />
+    <ClCompile Include="..\src\shared.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\shared.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
