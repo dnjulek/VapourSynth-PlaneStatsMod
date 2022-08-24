@@ -7,6 +7,41 @@ struct planeAverageData final {
 	int plane;
 };
 
+template<typename pixel_t>
+static float process_c(const VSFrame* src, VSFrame* dst, const planeAverageData* const VS_RESTRICT d, const VSAPI* vsapi) noexcept {
+	const auto width{ vsapi->getFrameWidth(src, d->plane) };
+	const auto height{ vsapi->getFrameHeight(src, d->plane) };
+	const auto stride{ vsapi->getStride(src, d->plane) / d->vi->format.bytesPerSample };
+	auto srcp{ reinterpret_cast<const pixel_t*>(vsapi->getReadPtr(src, d->plane)) };
+
+	auto total = static_cast<int64_t>(height * width);
+	typedef typename std::conditional < sizeof(pixel_t) == 4, double, int64_t>::type sum_t;
+	sum_t sum{ 0 };
+
+	for (int y{ 0 }; y < height; y++) {
+		for (int x{ 0 }; x < width; x++) {
+			auto pixel{ srcp[x] };
+			auto result = std::find(begin(d->pxlist), end(d->pxlist), pixel);
+			auto bresult = (result != std::end(d->pxlist));
+			if (!bresult) {
+				sum += pixel;
+			}
+
+			if (bresult) {
+				total--;
+			}
+		}
+		srcp += stride;
+	}
+
+	if (total == 0)
+		return 0.0f;
+	else if constexpr (std::is_integral_v<pixel_t>)
+		return (static_cast<float>(sum) / total) / ((1 << d->vi->format.bitsPerSample) - 1);
+	else
+		return static_cast<float>(sum / total);
+}
+
 
 static const VSFrame* VS_CC planeAverageGetFrame(int n, int activationReason, void* instanceData, void** frameData, VSFrameContext* frameCtx, VSCore* core, const VSAPI* vsapi) {
 	auto d{ static_cast<planeAverageData*>(instanceData) };
@@ -18,69 +53,17 @@ static const VSFrame* VS_CC planeAverageGetFrame(int n, int activationReason, vo
 		const VSFrame* src = vsapi->getFrameFilter(n, d->node, frameCtx);
 		VSFrame* dst = vsapi->copyFrame(src, core);
 		VSMap* dstProps = vsapi->getFramePropertiesRW(dst);
-		int height = vsapi->getFrameHeight(src, d->plane);
-		int width = vsapi->getFrameWidth(src, d->plane);
-		auto srcp = vsapi->getReadPtr(src, d->plane);
-		ptrdiff_t stride = vsapi->getStride(src, d->plane);
-		auto total = (int64_t)height * width;
-		double avg = 0.0;
-		uint64_t sum = 0;
-		double sumf = 0.0;
+		float avg{ 0.0f };
 
 		switch (d->vi->format.bytesPerSample) {
 		case 1:
-			for (int y = 0; y < height; y++) {
-				for (int x = 0; x < width; x++) {
-					auto pixel = srcp[x];
-					auto result = std::find(begin(d->pxlist), end(d->pxlist), pixel);
-					auto bresult = (result != std::end(d->pxlist));
-					if (!bresult) {
-						sum += pixel;
-					}
-
-					if (bresult) {
-						total--;
-					}
-				}
-				srcp += stride;
-			}
-			avg = (double)sum / (total * (((int64_t)1 << d->vi->format.bitsPerSample) - 1));
+			avg = process_c<uint8_t>(src, dst, d, vsapi);
 			break;
 		case 2:
-			for (int y = 0; y < height; y++) {
-				for (int x = 0; x < width; x++) {
-					auto pixel = ((const uint16_t*)srcp)[x];
-					auto result = std::find(begin(d->pxlist), end(d->pxlist), pixel);
-					auto bresult = (result != std::end(d->pxlist));
-					if (!bresult) {
-						sum += pixel;
-					}
-
-					if (bresult) {
-						total--;
-					}
-				}
-				srcp += stride;
-			}
-			avg = (double)sum / (total * (((int64_t)1 << d->vi->format.bitsPerSample) - 1));
+			avg = process_c<uint16_t>(src, dst, d, vsapi);
 			break;
 		case 4:
-			for (int y = 0; y < height; y++) {
-				for (int x = 0; x < width; x++) {
-					auto pixel = ((const float*)srcp)[x];
-					auto result = std::find(begin(d->pxlist), end(d->pxlist), pixel);
-					auto bresult = (result != std::end(d->pxlist));
-					if (!bresult) {
-						sumf += pixel;
-					}
-
-					if (bresult) {
-						total--;
-					}
-				}
-				srcp += stride;
-			}
-			avg = sumf / total;
+			avg = process_c<float>(src, dst, d, vsapi);
 			break;
 		}
 
