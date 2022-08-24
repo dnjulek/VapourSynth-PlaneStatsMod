@@ -26,7 +26,7 @@ psm.PlaneMinMax(vnode clip [, float minthr=0, float maxthr=0, int plane=0])
 
 ### Usage
 ```python
-psm.PlaneAverage(vnode clip, int[] value_exclude [, int plane=0])
+psm.PlaneAverage(vnode clip, int[] value_exclude [, int plane=0, string prop='psmAvg'])
 ```
 ### Parameters:
 
@@ -37,3 +37,5 @@ psm.PlaneAverage(vnode clip, int[] value_exclude [, int plane=0])
     List of pixel values that will be ignored during averaging.
 - plane\
     Plane to be used.
+- prop\
+    Name of the property to be used.

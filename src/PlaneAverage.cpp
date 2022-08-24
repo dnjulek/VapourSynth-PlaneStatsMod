@@ -1,3 +1,4 @@
+#include <string>
 #include "shared.h"
 
 struct planeAverageData final {
@@ -5,6 +6,7 @@ struct planeAverageData final {
 	const VSVideoInfo* vi;
 	std::vector<int> pxlist;
 	int plane;
+	std::string prop;
 };
 
 template<typename pixel_t>
@@ -67,7 +69,7 @@ static const VSFrame* VS_CC planeAverageGetFrame(int n, int activationReason, vo
 			break;
 		}
 
-		vsapi->mapSetFloat(dstProps, "psmAvg", avg, maReplace);
+		vsapi->mapSetFloat(dstProps, d->prop.c_str(), avg, maReplace);
 		vsapi->freeFrame(src);
 		return dst;
 	}
@@ -97,8 +99,11 @@ void VS_CC planeAverageCreate(const VSMap* in, VSMap* out, void* userData, VSCor
 	if (err)
 		d->plane = 0;
 
+	const char* tmpprop = vsapi->mapGetData(in, "prop", 0, &err);
+	d->prop = tmpprop ? tmpprop : "psmAvg";
+
 	if (d->plane < 0 || d->plane >= d->vi->format.numPlanes) {
-		vsapi->mapSetError(out, "PlaneAverage: invalid plane specified");
+		vsapi->mapSetError(out, "PlaneAverage: invalid plane specified.");
 		vsapi->freeNode(d->node);
 		return;
 	}
