@@ -1,3 +1,7 @@
+> [!CAUTION] 
+> DEPRECATED! Use https://github.com/dnjulek/vapoursynth-zip
+
+
 Vapoursynth PlaneStats with threshold.\
 Min and Max with threshold are useful for white balance scripts [like retinex](https://github.com/dnjulek/jvsfunc/blob/f7e1cad6f8cebeb011f8e6ee1d618526217da267/jvsfunc/misc.py#L53).
 
